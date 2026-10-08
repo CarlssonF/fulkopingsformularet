@@ -64,6 +64,13 @@ body {
   color: #b3b3b2;
 }
 
+.error-message {
+  display: block;
+  color: #b3261e;
+  font-size: 0.9rem;
+  margin-top: 0.35rem;
+}
+
 .form-actions {
   margin-top: 1.5rem;
 }

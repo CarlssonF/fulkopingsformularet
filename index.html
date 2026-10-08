@@ -19,17 +19,20 @@
 
       <div class="form-field">
         <label for="participants">Antal deltagare</label>
-        <input type="text" id="participants" name="participants">
+        <input type="number" id="participants" name="participants" step="1" value="0">
+        <span class="error-message" aria-live="polite"></span>
       </div>
 
       <div class="form-field">
         <label for="vegetarian">Antal vegetariska portioner</label>
-        <input type="text" id="vegetarian" name="vegetarian">
+        <input type="number" id="vegetarian" name="vegetarian" step="1" value="0">
+        <span class="error-message" aria-live="polite"></span>
       </div>
 
       <div class="form-field">
         <label for="vegan">Antal veganportioner</label>
-        <input type="text" id="vegan" name="vegan">
+        <input type="number" id="vegan" name="vegan" step="1" value="0">
+        <span class="error-message" aria-live="polite"></span>
       </div>
 
       <div class="form-field">
