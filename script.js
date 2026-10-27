@@ -1,401 +1,420 @@
+const orderForm = document.getElementById("orderForm");
+const messageArea = document.getElementById("messages");
+const submitButton = document.getElementById("submitBtn");
+
+// objekt för varje fält i formuläret
+const conferenceDateField = {
+  field: document.getElementById("conferenceDate"),
+  errorMessage: document.getElementById("conferenceDate-error"),
+  name: "bokmässans datum",
+  type: "date"
+};
+
+const deliveryDateField = {
+  field: document.getElementById("deliveryDate"),
+  errorMessage: document.getElementById("deliveryDate-error"),
+  name: "leveransdatum",
+  type: "date"
+};
+
+const participantCountField = {
+  field: document.getElementById("participants"),
+  errorMessage: document.getElementById("participants-error"),
+  name: "antal deltagare",
+  type: "number"
+};
+
+const vegetarianCountField = {
+  field: document.getElementById("vegetarian"),
+  errorMessage: document.getElementById("vegetarian-error"),
+  name: "antal vegetariska portioner",
+  type: "number"
+};
+
+const veganCountField = {
+  field: document.getElementById("vegan"),
+  errorMessage: document.getElementById("vegan-error"),
+  name: "antal veganportioner",
+  type: "number"
+};
+
+// array med alla fältobjekt 
+const formFields = [
+  conferenceDateField,
+  deliveryDateField,
+  participantCountField,
+  vegetarianCountField,
+  veganCountField
+];
+
+/* utgår från att användaren inte har försökt skicka formuläret än, 
+de här används sen för att inte visa felmeddelanden för tomma fält innan användaren försöker skicka formuläret, 
+och visa felmeddelanden för specialkostportioner vid senast ändrade fältet */
+let hasTriedToSubmit = false;
+let lastEditedPortionField = null; // inget är senast ändrat vid start, därav null
+
 // =====================================================
-// script.js - Validering av beställningsformuläret
+// VISA OCH TA BORT FELMEDDELANDEN
 // =====================================================
 
-
-// ---------- 1. Hämta elementen från HTML ----------
-
-var form = document.getElementById("orderForm");
-var messages = document.getElementById("messages");
-var submitBtn = document.getElementById("submitBtn");
-
-// Fälten
-var conferenceDate = document.getElementById("conferenceDate");
-var deliveryDate = document.getElementById("deliveryDate");
-var participants = document.getElementById("participants");
-var vegetarian = document.getElementById("vegetarian");
-var vegan = document.getElementById("vegan");
-
-// Platserna där felmeddelandena visas (ett per fält)
-var conferenceDateError = document.getElementById("conferenceDate-error");
-var deliveryDateError = document.getElementById("deliveryDate-error");
-var participantsError = document.getElementById("participants-error");
-var vegetarianError = document.getElementById("vegetarian-error");
-var veganError = document.getElementById("vegan-error");
-
-// Två listor (arrayer) med fälten och felrutorna i SAMMA ordning som på sidan.
-// Plats 0 i första listan hör ihop med plats 0 i andra listan osv.
-var allaFalt = [conferenceDate, deliveryDate, participants, vegetarian, vegan];
-var allaFelrutor = [conferenceDateError, deliveryDateError, participantsError, vegetarianError, veganError];
-
-// Har användaren försökt skicka formuläret?
-// Tomma fält får bara felmeddelande efter det första försöket.
-var harForsoktSkicka = false;
-
-
-// =====================================================
-// 2. HJÄLPFUNKTIONER FÖR ATT ÄNDRA UTSEENDET
-// =====================================================
-
-// Visar ett felmeddelande vid ett fält
-function visaFel(input, errorElement, text) {
-  errorElement.textContent = text;
-  input.setAttribute("aria-invalid", "true"); // används av CSS (röd ram) och skärmläsare
-  input.classList.remove("is-valid");
+function showFieldError(fieldObject, errorText) {
+  fieldObject.errorMessage.textContent = errorText; // tar felmeddelandet från objektet och sätter det som text i felmeddelandeelementet
+  fieldObject.field.setAttribute("aria-invalid", "true"); // aria för att visa att fältet är ogiltigt
+  fieldObject.field.classList.remove("is-valid"); // tar bort den gröna kanten om fältet tidigare var giltigt
 }
 
-// Markerar ett fält som godkänt (grön ram)
-function markeraGiltig(input) {
-  input.classList.add("is-valid");
+function markFieldAsValid(fieldObject) {
+  fieldObject.field.classList.add("is-valid");
 }
 
-// Rensar alla fält och felrutor
-function rensaAllaFalt() {
-  for (var i = 0; i < allaFalt.length; i++) {
-    allaFalt[i].removeAttribute("aria-invalid");
-    allaFalt[i].classList.remove("is-valid");
-    allaFelrutor[i].textContent = "";
+// tar bort alla felmeddelanden och markeringar för ogiltiga och giltiga fält, nollställer
+function clearFieldErrors() {
+  for (let i = 0; i < formFields.length; i++) {
+    const field = formFields[i];
+
+    field.field.removeAttribute("aria-invalid");
+    field.field.classList.remove("is-valid");
+    field.errorMessage.textContent = "";
   }
 }
 
-// Returnerar true om en felruta innehåller ett felmeddelande
-function harFel(errorElement) {
-  if (errorElement.textContent !== "") {
-    return true;
-  } else {
-    return false;
-  }
-}
+// fokuserar på det första fältet som har ett felmeddelande, när man försöker skicka formuläret med fel
+function focusFirstFieldWithError() {
+  for (let i = 0; i < formFields.length; i++) {
+    const field = formFields[i];
 
-// Flyttar markören till det första fältet (uppifrån och ner) som har fel
-function fokuseraForstaFelet() {
-  for (var i = 0; i < allaFalt.length; i++) {
-    if (harFel(allaFelrutor[i])) {
-      allaFalt[i].focus();
-      return; // klart, vi vill bara fokusera på det första
+    if (field.errorMessage.textContent !== "") {
+      field.field.focus();
+      return;
     }
   }
 }
 
-
 // =====================================================
-// 3. DEL 1 - INDIVIDUELLA KONTROLLER (ett fält i taget)
+// VALIDERING AV INDIVIDUELLA FÄLT
 // =====================================================
 
-// Kontrollerar ett antalsfält. Returnerar ett felmeddelande, eller "" om det är ok.
-function kontrolleraAntal(input, namn) {
-  var text = input.value.trim(); // trim() tar bort mellanslag i början och slutet
+// validerar att ett fält innehåller ett heltal som är 0 eller större, och returnerar felmeddelanden
+function validateWholeNumber(field, fieldName) {
+  const text = field.value.trim(); // texten i fältet utan mellanslag i början och slutet
 
-  // 1. Fältet får inte vara tomt
-  // (Number("") blir 0, så tomt måste kollas först)
   if (text === "") {
-    return "Ange " + namn + ".";
+    return "Ange " + fieldName + ".";
   }
 
-  // Number("5apa") och Number("3,5") blir NaN (= "Not a Number").
-  // parseInt("5apa") skulle ge 5 och missa felet, därför använder vi Number.
-  var tal = Number(text);
+  const number = Number(text);
 
-  // 2. Måste kunna tolkas som ett tal
-  if (isNaN(tal)) {
-    return "Skriv " + namn + " som ett heltal med bara siffror, t.ex. 25 (inte 5apa eller 3,5).";
+  if (isNaN(number)) {
+    return "Skriv " + fieldName + " som ett heltal med bara siffror, t.ex. 25 (inte 5apa eller 3,5).";
   }
 
-  // 3. Får inte vara negativt
-  if (tal < 0) {
-    return "Du kan inte ange ett negativt tal för " + namn + ".";
+  if (number < 0) {
+    return "Du kan inte ange ett negativt tal för " + fieldName + ".";
   }
 
-  // 4. Måste vara ett heltal (resten vid division med 1 är 0 för heltal)
-  if (tal % 1 !== 0) {
-    return "Skriv " + namn + " som ett heltal, utan decimaler.";
-  }
-
-  return ""; // inga fel
-}
-
-// Hämtar dagens datum med klockslaget nollställt (00:00:00)
-function hamtaDagensDatum() {
-  var idag = new Date();
-  idag.setHours(0, 0, 0, 0);
-  return idag;
-}
-
-// Kontrollerar ett datumfält: ifyllt och i framtiden.
-// Returnerar ett felmeddelande, eller "" om det är ok.
-function kontrolleraDatum(input, namn) {
-  if (input.value === "") {
-    return "Ange " + namn + ".";
-  }
-
-  // "T00:00:00" gör att datumet tolkas som midnatt i vår egen tidszon
-  var valtDatum = new Date(input.value + "T00:00:00");
-  var idag = hamtaDagensDatum();
-
-  // Vi tolkar "i framtiden" som från och med imorgon
-  if (valtDatum <= idag) {
-    return "Du måste välja " + namn + " i framtiden (tidigast imorgon).";
+  if (number % 1 !== 0) {
+    return "Skriv " + fieldName + " som ett heltal, utan decimaler.";
   }
 
   return "";
 }
 
+// validerar att ett fält innehåller ett datum i framtiden, returnerar annars felmeddelanden
+function validateFutureDate(field, fieldName) {
+  if (field.value === "") {
+    return "Ange " + fieldName + ".";
+  }
 
-// =====================================================
-// 4. HITTA ALLA FEL
-// =====================================================
-// Felen sparas som objekt i en lista. Varje fel har:
-//   input        - vilket fält det gäller
-//   errorElement - var felet ska visas
-//   kort         - kort text för felrutan överst
-//   lang         - längre text vid fältet
-//   tomt         - true om fältet är tomt
+  const today = new Date();
+  const todayAsText = // dagens datum i formatet YYYY-MM-DD
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0"); // padStart lägger till en nolla framför månaden och dagen om de är ensiffriga
 
-function laggTillFel(lista, input, errorElement, kortText, langText) {
-  var fel = {
-    input: input,
-    errorElement: errorElement,
-    kort: kortText,
-    lang: langText,
-    tomt: input.value.trim() === ""
-  };
-  lista.push(fel); // push() lägger till i slutet av listan
+  if (field.value <= todayAsText) {
+    return "Du måste välja " + fieldName + " i framtiden (tidigast imorgon).";
+  }
+
+  return "";
 }
 
-// ----- Del 1: individuell validering -----
-function valideraIndividuellt(fel) {
-  var text;
+// skapar och lägger till ett objekt med fält, felmeddelande och kort felmeddelande i en lista med fel, och markerar om fältet är tomt
+function addError(errorList, field, errorText, shortErrorText) {
+  errorList.push({
+    field: field,
+    text: errorText,
+    shortText: shortErrorText,
+    isEmpty: field.field.value.trim() === ""
+  });
+}
 
-  text = kontrolleraDatum(conferenceDate, "bokmässans datum");
-  if (text !== "") {
-    laggTillFel(fel, conferenceDate, conferenceDateError, text, text);
-  }
+// validerar alla fält individuellt och lägger till eventuella fel i errorList
+function validateIndividualFields(errorList) {
+  for (let i = 0; i < formFields.length; i++) {
+    const field = formFields[i];
+    let errorText = "";
 
-  text = kontrolleraDatum(deliveryDate, "leveransdatum");
-  if (text !== "") {
-    laggTillFel(fel, deliveryDate, deliveryDateError, text, text);
-  }
+    if (field.type === "date") {
+      errorText = validateFutureDate(field.field, field.name);
+    } else {
+      errorText = validateWholeNumber(field.field, field.name);
+    }
 
-  text = kontrolleraAntal(participants, "antal deltagare");
-  if (text !== "") {
-    laggTillFel(fel, participants, participantsError, text, text);
-  }
-
-  text = kontrolleraAntal(vegetarian, "antal vegetariska portioner");
-  if (text !== "") {
-    laggTillFel(fel, vegetarian, vegetarianError, text, text);
-  }
-
-  text = kontrolleraAntal(vegan, "antal veganportioner");
-  if (text !== "") {
-    laggTillFel(fel, vegan, veganError, text, text);
+    if (errorText !== "") {
+      addError(errorList, field, errorText, errorText);
+    }
   }
 }
 
-// ----- Del 2: mellanfältsvalidering -----
-
-// Skriver "1 dag" eller "2 dagar"
-function dagarText(antal) {
-  if (antal === 1) {
+// formaterar antal dagar till en textsträng, t.ex. "1 dag" eller "3 dagar" till felmeddelanden
+function formatDayCount(numberOfDays) {
+  if (numberOfDays === 1) {
     return "1 dag";
-  } else {
-    return antal + " dagar";
   }
+
+  return numberOfDays + " dagar";
 }
 
-// Regel 1: vegetariska + veganska får inte vara fler än deltagarna
-function valideraPortioner(fel) {
-  // Kör bara om alla tre fält är giltiga var för sig, annars finns inga riktiga tal att jämföra
-  var deltagareOk = kontrolleraAntal(participants, "antal deltagare") === "";
-  var vegetariskaOk = kontrolleraAntal(vegetarian, "antal vegetariska portioner") === "";
-  var veganskaOk = kontrolleraAntal(vegan, "antal veganportioner") === "";
+// =====================================================
+// MELLANFÄLTSVALIDERING
+// =====================================================
 
-  if (deltagareOk === false || vegetariskaOk === false || veganskaOk === false) {
-    return; // avbryter funktionen
-  }
+// validerar att antalet vegetariska och veganska portioner inte är fler än antalet deltagare, lägger till fel i errorList om det är fler
+function validatePortionCounts(errorList) {
+  const participantCountIsValid =
+    validateWholeNumber(participantCountField.field, participantCountField.name) === "";
+  const vegetarianCountIsValid =
+    validateWholeNumber(vegetarianCountField.field, vegetarianCountField.name) === "";
+  const veganCountIsValid =
+    validateWholeNumber(veganCountField.field, veganCountField.name) === "";
 
-  // Number() behövs, annars blir "2" + "3" texten "23" i stället för 5
-  var antalDeltagare = Number(participants.value.trim());
-  var antalVegetariska = Number(vegetarian.value.trim());
-  var antalVeganska = Number(vegan.value.trim());
-  var summa = antalVegetariska + antalVeganska;
-
-  if (summa > antalDeltagare) {
-    laggTillFel(
-      fel,
-      vegan,
-      veganError,
-      "Fler specialkostportioner än deltagare.",
-      "Vegetariska (" + antalVegetariska + ") och veganska (" + antalVeganska + ") portioner blir " +
-      summa + " tillsammans. Det är fler än antalet deltagare (" + antalDeltagare + "). " +
-      "Minska antalet portioner eller öka antalet deltagare."
-    );
-  }
-}
-
-// Regel 2: leveransen ska vara samma dag som mässan eller dagen före
-function valideraLeveransdatum(fel) {
-  // Kör bara om båda datumen är giltiga var för sig
-  var mässaOk = kontrolleraDatum(conferenceDate, "bokmässans datum") === "";
-  var leveransOk = kontrolleraDatum(deliveryDate, "leveransdatum") === "";
-
-  if (mässaOk === false || leveransOk === false) {
+// om fälten inte har heltal eller är tomma, returnera utan att göra fler kontroller och visa det felmeddelandet istället
+  if (
+    participantCountIsValid === false ||
+    vegetarianCountIsValid === false ||
+    veganCountIsValid === false
+  ) {
     return;
   }
 
-  var massa = new Date(conferenceDate.value + "T00:00:00");
-  var leverans = new Date(deliveryDate.value + "T00:00:00");
+  const participantCount = Number(participantCountField.field.value.trim());
+  const vegetarianCount = Number(vegetarianCountField.field.value.trim());
+  const veganCount = Number(veganCountField.field.value.trim());
+  const totalSpecialPortions = vegetarianCount + veganCount;
 
-  // Skillnad i dagar. Math.round hanterar sommar-/vintertid (dygn med 23 eller 25 timmar).
-  var millisekunderPerDag = 1000 * 60 * 60 * 24;
-  var skillnadIDagar = Math.round((massa - leverans) / millisekunderPerDag);
-  // 0 = samma dag, 1 = dagen före, negativt = efter mässan, över 1 = för tidigt
+  // om det totala antalet specialkostportioner är fler än antalet deltagare
+  if (totalSpecialPortions > participantCount) {
+    const errorText =
+      "Vegetariska (" + vegetarianCount + ") och veganska (" + veganCount +
+      ") portioner blir " + totalSpecialPortions +
+      " tillsammans. Det är fler än antalet deltagare (" + participantCount +
+      "). Minska antalet portioner eller öka antalet deltagare.";
+    const fieldWithError = lastEditedPortionField || veganCountField; // visar felmeddelandet vid det senast ändrade fältet, eller veganfältet som standard
 
-  if (skillnadIDagar < 0) {
-    var dagarEfter = 0 - skillnadIDagar; // gör om till positivt tal
-    laggTillFel(
-      fel,
-      deliveryDate,
-      deliveryDateError,
-      "Leveransdatum kan inte vara efter bokmässans datum.",
-      "Leveransdatum är " + dagarText(dagarEfter) + " efter konferensdatumet " + conferenceDate.value +
-      ". Leveransen måste ske på konferensdagen eller dagen före."
-    );
-  } else if (skillnadIDagar > 1) {
-    laggTillFel(
-      fel,
-      deliveryDate,
-      deliveryDateError,
-      "Leveransdatum måste vara max 1 dag före bokmässans datum.",
-      "Leveransdatum är " + dagarText(skillnadIDagar) + " före konferensdatumet " + conferenceDate.value +
-      ". Leveransen måste ske på konferensdagen eller dagen före."
+    addError(
+      errorList,
+      fieldWithError,
+      errorText,
+      "Fler specialkostportioner än deltagare."
     );
   }
 }
 
-function valideraMellanFalt(fel) {
-  valideraPortioner(fel);
-  valideraLeveransdatum(fel);
+// validerar att leveransdatumet är på konferensdagen eller dagen innan, lägger till fel i errorList om det inte är det
+function validateDeliveryDate(errorList) {
+  const conferenceDateIsValid =
+    validateFutureDate(conferenceDateField.field, conferenceDateField.name) === "";
+  const deliveryDateIsValid =
+    validateFutureDate(deliveryDateField.field, deliveryDateField.name) === "";
+
+// om fälten inte har giltiga datum eller är tomma, returnera utan att göra fler kontroller och visa det felmeddelandet istället
+  if (conferenceDateIsValid === false || deliveryDateIsValid === false) {
+    return;
+  }
+
+  const conferenceDate = new Date(conferenceDateField.field.value);
+  const deliveryDate = new Date(deliveryDateField.field.value);
+  const daysBetweenDates =
+    (conferenceDate - deliveryDate) / (1000 * 60 * 60 * 24); // skillnaden i dagar mellan konferensdatumet och leveransdatumet, js lagrar datum som millisekunder därav divisionen för att få skillnaden i dagar
+
+  // om leveransdatumet är efter konferensdatumet
+  if (daysBetweenDates < 0) {
+    const daysAfterConference = 0 - daysBetweenDates; // vänder tecknet på skillnaden så att det blir ett positivt tal, för att visa i felmeddelandet
+    const errorText =
+      "Leveransdatum är " + formatDayCount(daysAfterConference) +
+      " efter konferensdatumet " + conferenceDateField.field.value +
+      ". Leveransen måste ske på konferensdagen eller dagen före.";
+
+    addError(
+      errorList,
+      deliveryDateField,
+      errorText,
+      "Leveransdatum kan inte vara efter bokmässans datum."
+    );
+// om leveransdatumet är mer än en dag före konferensdatumet
+  } else if (daysBetweenDates > 1) {
+    const errorText =
+      "Leveransdatum är " + formatDayCount(daysBetweenDates) +
+      " före konferensdatumet " + conferenceDateField.field.value +
+      ". Leveransen måste ske på konferensdagen eller dagen före.";
+
+    addError(
+      errorList,
+      deliveryDateField,
+      errorText,
+      "Leveransdatum måste vara max 1 dag före bokmässans datum."
+    );
+  }
 }
 
-// Samlar alla fel (både individuella och mellan fält) i en lista
-function hittaFel() {
-  var fel = []; // tom lista
-  valideraIndividuellt(fel);
-  valideraMellanFalt(fel);
-  return fel;
+// =====================================================
+// HÄMTA ALLA FEL
+// =====================================================
+
+// här skapas listan med alla felmeddelanden genom att köra funktionerna för individuell och mellanfältsvalidering, returnerar listan med alla fel som hittas
+function getAllErrors() {
+  const errorList = [];
+
+  validateIndividualFields(errorList);
+  validatePortionCounts(errorList);
+  validateDeliveryDate(errorList);
+
+  return errorList;
 }
 
-
-// =====================================================
-// 5. VISA RESULTATET PÅ SIDAN
-// =====================================================
-
-// Returnerar true om det finns ett fel i listan för just det fältet
-function harFelObjekt(fel, input) {
-  for (var i = 0; i < fel.length; i++) {
-    if (fel[i].input === input) {
+// kollar om ett fält finns i listan med fel, returnerar true om det finns, annars false, alltså om det har fel eller inte
+function fieldHasError(errorList, field) {
+  for (let i = 0; i < errorList.length; i++) {
+    if (errorList[i].field === field) {
       return true;
     }
   }
+
   return false;
 }
 
-// Bygger felrutan överst. Får in en lista med korta texter.
-// OBS: innerHTML är ok här eftersom texterna kommer från vår egen kod
-// och inte innehåller något användaren skrivit.
-function visaSammanfattning(korta) {
-  if (korta.length === 0) {
-    messages.innerHTML = "";
+// =====================================================
+// VISA FELSAMMANFATTNING OCH UPPDATERA SKICKA-KNAPP
+// =====================================================
+
+// visar en sammanfattning av alla felmeddelanden i ett fält högst upp i formuläret, om det finns några fel
+function showErrorSummary(shortErrorTexts) {
+
+// om det inte finns några fel, visa ingen sammanfattning
+  if (shortErrorTexts.length === 0) {
+    messageArea.innerHTML = "";
     return;
   }
 
-  var html = '<div class="summary-box">';
+// skapar html för sammanfattningsrutan
+  let html = '<div class="summary-box">';
   html += '<p class="summary-title">Det går inte att skicka beställningen än</p>';
   html += '<p class="summary-text">Rätta felen nedan. Varje fel står också vid det fält det gäller.</p>';
   html += '<ul class="summary-list">';
-  for (var i = 0; i < korta.length; i++) {
-    html += "<li>" + korta[i] + "</li>";
-  }
-  html += "</ul></div>";
 
-  messages.innerHTML = html;
+// listar alla korta felmeddelanden i en lista och lägger till dem rutan
+  for (let i = 0; i < shortErrorTexts.length; i++) {
+    html += "<li>" + shortErrorTexts[i] + "</li>";
+  }
+
+  html += "</ul></div>";
+  messageArea.innerHTML = html;
 }
 
-// Visar att beställningen har skickats
-function visaFramgang() {
-  messages.innerHTML =
+// bekräftelse när formuläret skickas
+function showSuccessMessage() {
+  messageArea.innerHTML =
     '<div class="summary-box summary-box--success">' +
     '<p class="summary-title">Beställningen är skickad!</p>' +
     "</div>";
 }
 
-// Gör knappen röd när hela formuläret är giltigt, annars grå
-function uppdateraKnappen() {
-  var fel = hittaFel();
-  if (fel.length === 0) {
-    submitBtn.classList.add("is-ready");
+// aktiverar eller inaktiverar skicka-knappen beroende på om det finns några fel i formuläret
+function updateSubmitButton(errorList) {
+  if (errorList.length === 0) {
+    submitButton.classList.add("is-ready");
   } else {
-    submitBtn.classList.remove("is-ready");
+    submitButton.classList.remove("is-ready");
   }
 }
 
-// Huvudfunktion: kontrollerar allt och uppdaterar hela sidan
-function uppdateraSidan() {
-  var fel = hittaFel();
-  var synligaKorta = []; // korta texter till felrutan
+// huvudfunktion som validerar alla fält, visar felmeddelanden och uppdaterar skicka-knappen, returnerar listan med alla fel
+function validateAndUpdateForm() {
+  const errorList = getAllErrors();
+  const shortErrorTexts = [];
 
-  // Börja med ren sida
-  rensaAllaFalt();
+  clearFieldErrors(); // tar bort alla tidigare felmeddelanden och markeringar för ogiltiga och giltiga fält, nollställer
 
-  // Visa felen. Tomma fält visas bara efter att man försökt skicka.
-  for (var i = 0; i < fel.length; i++) {
-    if (fel[i].tomt === false || harForsoktSkicka === true) {
-      visaFel(fel[i].input, fel[i].errorElement, fel[i].lang);
-      synligaKorta.push(fel[i].kort);
+// loopar igenom alla fel och visar dem vid respektive fält, samt lägger till korta felmeddelanden i en lista till sammanfattningsrutan
+  for (let i = 0; i < errorList.length; i++) {
+    const error = errorList[i];
+
+    if (error.isEmpty === false || hasTriedToSubmit === true) {
+      showFieldError(error.field, error.text);
+      shortErrorTexts.push(error.shortText);
+    }
+  }
+  
+// loopar igenom alla fält och markerar de som är giltiga
+  for (let i = 0; i < formFields.length; i++) {
+    const field = formFields[i];
+    const fieldIsFilledIn = field.field.value.trim() !== "";
+    const fieldHasAnError = fieldHasError(errorList, field);
+
+    if (fieldIsFilledIn && fieldHasAnError === false) {
+      markFieldAsValid(field);
     }
   }
 
-  // Grön ram på ifyllda fält som inte har något fel
-  for (var j = 0; j < allaFalt.length; j++) {
-    if (allaFalt[j].value.trim() !== "" && harFelObjekt(fel, allaFalt[j]) === false) {
-      markeraGiltig(allaFalt[j]);
-    }
-  }
+  // visar sammanfattningsrutan och uppdaterar skicka-knappen beroende på om det finns några fel i formuläret eller om det är giltigt
+  showErrorSummary(shortErrorTexts);
+  updateSubmitButton(errorList);
 
-  visaSammanfattning(synligaKorta);
-  uppdateraKnappen();
+  return errorList;
 }
 
-
-// =====================================================
-// 6. HÄNDELSER (events)
-// =====================================================
-
-// När formuläret skickas
-form.addEventListener("submit", function (event) {
-  event.preventDefault(); // stoppar sidan från att laddas om
-
-  harForsoktSkicka = true; // nu får även tomma fält fel
-  uppdateraSidan();
-
-  var fel = hittaFel();
-  if (fel.length > 0) {
-    fokuseraForstaFelet();
-    return; // beställningen skickas inte
+// uppdaterar skicka-knappen när användaren skriver i ett fält, och sparar vilket fält som senast ändrades med hjälp av event.target (det aktiva fältet)
+function updateSubmitButtonAfterTyping(event) {
+  if (event.target === vegetarianCountField.field) {
+    lastEditedPortionField = vegetarianCountField;
+  } else if (event.target === veganCountField.field) {
+    lastEditedPortionField = veganCountField;
   }
 
-  visaFramgang();
-  // Här skulle man i ett riktigt projekt skicka datan till en server
+  const errorList = getAllErrors();
+  updateSubmitButton(errorList);
+}
+
+// =====================================================
+// EVENT (ALLT KÖRS)
+// =====================================================
+
+// när man skickar formuläret, körs valideringen och visar felmeddelanden eller bekräftelse om det är giltigt
+orderForm.addEventListener("submit", function (event) {
+  
+// ladda inte om sidan när man skickar formuläret, vilket är default, utan visa felmeddelanden och markera fält med fel eller visa bekräftelse om det är giltigt
+  event.preventDefault();
+  hasTriedToSubmit = true;
+  
+  // listan med alla fel som fås av huvudfunktionen validateAndUpdateForm, som nu körs när man försöker skicka formuläret
+  const errorList = validateAndUpdateForm();
+
+  if (errorList.length > 0) {
+    focusFirstFieldWithError();
+    return;
+  }
+
+// visa bekräftelse om det inte finns några fel
+  showSuccessMessage();
 });
 
-// För varje fält:
-// "change" = användaren är klar med fältet (lämnar det eller väljer datum) -> validera allt
-// "input"  = användaren skriver -> uppdatera bara knappens färg
-for (var i = 0; i < allaFalt.length; i++) {
-  allaFalt[i].addEventListener("change", uppdateraSidan);
-  allaFalt[i].addEventListener("input", uppdateraKnappen);
+// Validera formuläret när ett fält ändras och uppdatera knappen medan användaren skriver.
+for (let i = 0; i < formFields.length; i++) {
+  const field = formFields[i].field;
+
+  field.addEventListener("change", validateAndUpdateForm);
+  field.addEventListener("input", updateSubmitButtonAfterTyping);
 }
 
-// Kör en gång när sidan laddas (ifall webbläsaren fyllt i fält automatiskt)
-uppdateraSidan();
+// när sidan laddas körs valideringen
+validateAndUpdateForm();
