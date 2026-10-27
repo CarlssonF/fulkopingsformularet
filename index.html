@@ -3,57 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Specialkost - Fulköpings bokmässa</title>
+  <title>Beställning av mat - Fulköpings bokmässa</title>
+
+  <!-- Typsnittet Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div class="wrapper">
 
-    <div class="header">
+    <header class="header">
       <h1>Beställning av mat till Fulköpings bokmässa</h1>
-      <p>Vid frågor kontakta vår kundtjänst: fulkopingsbokmassa@gmail.com</p>
-    </div>
+      <p>
+        Vid frågor kontakta vår kundtjänst:
+        <a href="mailto:fulkopingsbokmassa@gmail.com">fulkopingsbokmassa@gmail.com</a>
+      </p>
+    </header>
 
-    <div class="order-form">
+    <main class="order-form">
+      <form id="orderForm" novalidate>
 
-      <div class="form-field">
-        <label for="conferenceDate">Bokmässans datum</label>
-        <input type="date" id="conferenceDate" name="conferenceDate">
-      </div>
+        <p class="intro">
+          Fyll i hur många som ska äta och hur många som behöver vegetarisk eller vegansk mat.
+          Det tar ungefär 2 minuter.
+        </p>
 
-      <div class="form-field">
-        <label for="deliveryDate">Leveransdatum</label>
-        <p>Välj när maten ska levereras (samma dag som mässan eller 1 dag innan).</p>
-        <input type="date" id="deliveryDate" name="deliveryDate">
-      </div>
+        <!-- Här visar JavaScript felrutan (eller meddelandet om att beställningen skickats).
+             aria-live gör att skärmläsare läser upp ändringar. -->
+        <div class="messages" id="messages" role="status" aria-live="polite"></div>
 
-      <div class="form-field">
-        <label for="participants">Antal deltagare totalt</label>
-        <p>Ange totalt antal personer som ska äta.</p>
-        <input type="text" id="participants" name="participants">
-      </div>
+        <div class="form-field">
+          <label for="conferenceDate">Bokmässans datum</label>
+          <input type="date" id="conferenceDate" name="conferenceDate"
+                 required aria-describedby="conferenceDate-error">
+          <p class="error-text" id="conferenceDate-error"></p>
+        </div>
 
-      <div class="form-field">
-        <label for="vegetarian">Antal vegetariska portioner</label>
-        <p>Ange 0 om ingen vegetarisk portion önskas.</p>
-        <input type="text" id="vegetarian" name="vegetarian">
-      </div>
+        <div class="form-field">
+          <label for="deliveryDate">Leveransdatum</label>
+          <p class="hint" id="deliveryDate-hint">
+            Välj när maten ska levereras (samma dag som mässan eller 1 dag innan).
+          </p>
+          <input type="date" id="deliveryDate" name="deliveryDate"
+                 required aria-describedby="deliveryDate-hint deliveryDate-error">
+          <p class="error-text" id="deliveryDate-error"></p>
+        </div>
 
-      <div class="form-field">
-        <label for="vegan">Antal veganportioner</label>
-        <p>Ange 0 om ingen vegansk portion önskas.</p>
-        <input type="text" id="vegan" name="vegan">
-      </div>
- 
+        <div class="form-field">
+          <label for="participants">Antal deltagare totalt</label>
+          <p class="hint" id="participants-hint">
+            Ange totalt antal personer som ska äta. Använd heltal.
+          </p>
+          <input type="text" id="participants" name="participants"
+                 inputmode="numeric" required
+                 aria-describedby="participants-hint participants-error">
+          <p class="error-text" id="participants-error"></p>
+        </div>
 
-      <div class="form-actions">
-        <button type="button" id="submitBtn">Skicka beställning</button>
-      </div>
+        <div class="form-field">
+          <label for="vegetarian">Antal vegetariska portioner</label>
+          <p class="hint" id="vegetarian-hint">
+            Ange 0 om ingen vegetarisk portion önskas. Använd heltal.
+          </p>
+          <input type="text" id="vegetarian" name="vegetarian"
+                 inputmode="numeric" required
+                 aria-describedby="vegetarian-hint vegetarian-error">
+          <p class="error-text" id="vegetarian-error"></p>
+        </div>
 
-      <div class="messages" id="messages"></div>
+        <div class="form-field">
+          <label for="vegan">Antal veganska portioner</label>
+          <p class="hint" id="vegan-hint">
+            Ange 0 om ingen vegansk portion önskas. Använd heltal.
+          </p>
+          <input type="text" id="vegan" name="vegan"
+                 inputmode="numeric" required
+                 aria-describedby="vegan-hint vegan-error">
+          <p class="error-text" id="vegan-error"></p>
+        </div>
 
-    </div>
+        <div class="form-actions">
+          <button type="submit" id="submitBtn">Skicka beställning</button>
+        </div>
+
+      </form>
+    </main>
 
   </div>
 

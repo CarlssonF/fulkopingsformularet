@@ -1,3 +1,35 @@
+/* ---------- Färger, typsnitt och ikoner på ett ställe ---------- */
+:root {
+  --bakgrund: #f4efe6;
+  --text: #241F1D;
+  --hjalptext: #5C544E;
+  --rubrikfarg: #7c3030;
+  --faltram: #b7ad99;
+  --fel: #b00020;
+  --fel-bakgrund: #fdecea;
+  --giltig: #2e7d32;
+  --giltig-bakgrund: #edf7ee;
+  --knapp-klar: #7c3030;
+
+  --font-text: Inter, Arial, sans-serif;
+  --font-rubrik: Georgia, serif;
+
+  /* Ikoner som SVG-bilder. I en SVG-bild kan man inte använda CSS-variabler,
+     så färgen står som hex-kod. Tecknet # måste skrivas %23.
+     %23b00020 = röd (--fel), %232e7d32 = grön (--giltig). */
+
+  /* Röd cirkel med vitt utropstecken (felikon) */
+  --ikon-fel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='10' fill='%23b00020'/%3E%3Crect x='9' y='4.5' width='2' height='7' rx='1' fill='white'/%3E%3Ccircle cx='10' cy='14.5' r='1.2' fill='white'/%3E%3C/svg%3E");
+
+  /* Grön bock (godkänt fält) */
+  --ikon-bock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%232e7d32' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  /* Grön cirkel med vit bock (rutan när beställningen skickats) */
+  --ikon-ok-cirkel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='10' fill='%232e7d32'/%3E%3Cpath d='M5.5 10.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+
+/* ---------- Grundinställningar ---------- */
 * {
   margin: 0;
   padding: 0;
@@ -5,9 +37,9 @@
 }
 
 body {
-  font-family: Georgia, serif;
-  background-color: #f4efe6;
-  color: #241F1D;
+  font-family: var(--font-text);
+  background-color: var(--bakgrund);
+  color: var(--text);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -20,32 +52,51 @@ body {
   width: 100%;
 }
 
+/* Fält och knappar ärver inte typsnitt automatiskt */
+input,
+button {
+  font-family: inherit;
+}
+
+
+/* ---------- Header ---------- */
 .header {
-  background-color: #7c3030;
+  background-color: var(--rubrikfarg);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  align-self: stretch;
   color: white;
   padding: 1.5rem 2rem;
   border-radius: 8px 8px 0 0;
 }
 
 .header h1 {
+  font-family: var(--font-rubrik);
   font-size: 1.6rem;
 }
 
 .header p {
   margin-top: 0.4rem;
-  font-family: Inter;
 }
 
+.header a {
+  color: #ffffff;
+}
+
+
+/* ---------- Formuläret ---------- */
 .order-form {
   background-color: #fffdf8;
   padding: 2rem;
   border-radius: 0 0 8px 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.intro {
+  font-size: 1rem;
+  line-height: 150%;
+  margin-bottom: 1.5rem;
 }
 
 .form-field {
@@ -54,31 +105,159 @@ body {
 
 .form-field label {
   display: block;
+  font-family: var(--font-rubrik);
   font-weight: bold;
+  font-size: 1.125rem;
   margin-bottom: 0.35rem;
-  font-size: 18px;
+}
+
+.hint {
+  font-size: 1rem;
+  color: var(--hjalptext);
+  line-height: 150%;
+  margin-bottom: 0.35rem;
 }
 
 .form-field input {
   width: 100%;
   padding: 0.55rem 0.75rem;
   font-size: 1rem;
-  border: 1px solid #b7ad99;
+  border: 1px solid var(--faltram);
   border-radius: 4px;
   background-color: #fff;
-  color: #b3b3b2;
+  color: var(--text);
 }
 
-.form-field p {
-  font-size: 16px;
-  color: #5C544E;
+
+/* ---------- Tillstånd: godkänt fält ---------- */
+/* Grön ram. box-shadow ger en tjockare ram utan att fältet växer och flyttar sidan. */
+.form-field input.is-valid {
+  border-color: var(--giltig);
+  box-shadow: 0 0 0 1px var(--giltig);
+
+  /* Grön bock längst till höger inne i fältet */
+  background-image: var(--ikon-bock);
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+}
+
+/* Textfält: extra utrymme till höger så att texten aldrig hamnar under bocken */
+.form-field input[type="text"].is-valid {
+  padding-right: 2.75rem;
+}
+
+/* Datumfält: webbläsaren ritar redan en kalenderikon längst till höger,
+   så bocken flyttas in till vänster om den */
+.form-field input[type="date"].is-valid {
+  background-position: right 3rem center;
+}
+
+
+/* ---------- Tillstånd: fel ---------- */
+.form-field input[aria-invalid="true"] {
+  border-color: var(--fel);
+  box-shadow: 0 0 0 1px var(--fel);
+}
+
+/* Felmeddelande under fältet */
+.form-field .error-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: var(--fel);
+  font-weight: bold;
+  font-size: 0.875rem;
   line-height: 150%;
+  margin-top: 0.5rem;
 }
 
+/* Tom felruta tar ingen plats */
+.form-field .error-text:empty {
+  display: none;
+}
+
+/* Felikonen framför texten. Samma ikon används i rubriken i felrutan överst.
+   content: "" betyder att pseudoelementet inte har någon text,
+   så skärmläsare läser bara upp själva meddelandet. */
+.form-field .error-text::before,
+.summary-title::before {
+  content: "";
+  flex-shrink: 0;           /* ikonen får inte tryckas ihop när texten bryts */
+  width: 1.125rem;
+  height: 1.125rem;
+  background-image: var(--ikon-fel);
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.form-field .error-text::before {
+  margin-top: 0.1rem;       /* justerar ikonen mot första textraden */
+}
+
+
+/* ---------- Felrutan högst upp ---------- */
+/* Avståndet ligger under rutan, eftersom fälten kommer efter den.
+   :not(:empty) gör att en tom messages inte tar någon plats. */
+.messages:not(:empty) {
+  margin-bottom: 1.5rem;
+}
+
+.summary-box {
+  background-color: var(--fel-bakgrund);
+  border: 1px solid var(--fel);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fel);
+  font-weight: bold;
+}
+
+.summary-text {
+  font-size: 0.875rem;
+  line-height: 150%;
+  margin-top: 0.5rem;
+}
+
+.summary-list {
+  list-style: none;
+  margin-top: 0.5rem;
+}
+
+.summary-list li {
+  color: var(--fel);
+  font-weight: bold;
+  font-size: 0.875rem;
+  line-height: 150%;
+  margin-top: 0.25rem;
+}
+
+/* Samma ruta fast grön när beställningen skickats */
+.summary-box--success {
+  background-color: var(--giltig-bakgrund);
+  border-color: var(--giltig);
+}
+
+.summary-box--success .summary-title {
+  color: var(--giltig);
+}
+
+.summary-box--success .summary-title::before {
+  background-image: var(--ikon-ok-cirkel);
+}
+
+
+/* ---------- Knappen ---------- */
 .form-actions {
   margin-top: 1.5rem;
 }
 
+/* Grå som standard */
 .form-actions button {
   background-color: #F8F6F6;
   color: #676767;
@@ -89,7 +268,22 @@ body {
   cursor: pointer;
 }
 
-.messages {
-  margin-top: 1rem;
+/* Röd när hela formuläret är giltigt (klassen sätts av JavaScript) */
+.form-actions button.is-ready {
+  background-color: var(--knapp-klar);
+  color: #ffffff;
+  border-color: var(--knapp-klar);
 }
 
+
+/* ---------- Tillgänglighet: fokusmarkering ---------- */
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #1a4fd6;
+  outline-offset: 2px;
+}
+
+.header a:focus-visible {
+  outline-color: #ffffff;
+}
