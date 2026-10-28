@@ -7,35 +7,40 @@ const conferenceDateField = {
   field: document.getElementById("conferenceDate"),
   errorMessage: document.getElementById("conferenceDate-error"),
   name: "bokmässans datum",
-  type: "date"
+  type: "date",
+  wasTouched: false
 };
 
 const deliveryDateField = {
   field: document.getElementById("deliveryDate"),
   errorMessage: document.getElementById("deliveryDate-error"),
   name: "leveransdatum",
-  type: "date"
+  type: "date",
+  wasTouched: false
 };
 
 const participantCountField = {
   field: document.getElementById("participants"),
   errorMessage: document.getElementById("participants-error"),
   name: "antal deltagare",
-  type: "number"
+  type: "number",
+  wasTouched: false
 };
 
 const vegetarianCountField = {
   field: document.getElementById("vegetarian"),
   errorMessage: document.getElementById("vegetarian-error"),
   name: "antal vegetariska portioner",
-  type: "number"
+  type: "number",
+  wasTouched: false
 };
 
 const veganCountField = {
   field: document.getElementById("vegan"),
   errorMessage: document.getElementById("vegan-error"),
   name: "antal veganportioner",
-  type: "number"
+  type: "number",
+  wasTouched: false
 };
 
 // array med alla fältobjekt 
@@ -47,10 +52,7 @@ const formFields = [
   veganCountField
 ];
 
-/* utgår från att användaren inte har försökt skicka formuläret än, 
-de här används sen för att inte visa felmeddelanden för tomma fält innan användaren försöker skicka formuläret, 
-och visa felmeddelanden för specialkostportioner vid senast ändrade fältet */
-let hasTriedToSubmit = false;
+// Sparar vilket portionsfält som ändrades senast, så summationsfelet visas där.
 let lastEditedPortionField = null; // inget är senast ändrat vid start, därav null
 
 // =====================================================
@@ -75,18 +77,6 @@ function clearFieldErrors() {
     field.field.removeAttribute("aria-invalid");
     field.field.classList.remove("is-valid");
     field.errorMessage.textContent = "";
-  }
-}
-
-// fokuserar på det första fältet som har ett felmeddelande, när man försöker skicka formuläret med fel
-function focusFirstFieldWithError() {
-  for (let i = 0; i < formFields.length; i++) {
-    const field = formFields[i];
-
-    if (field.errorMessage.textContent !== "") {
-      field.field.focus();
-      return;
-    }
   }
 }
 
@@ -181,18 +171,11 @@ function formatDayCount(numberOfDays) {
 
 // validerar att antalet vegetariska och veganska portioner inte är fler än antalet deltagare, lägger till fel i errorList om det är fler
 function validatePortionCounts(errorList) {
-  const participantCountIsValid =
-    validateWholeNumber(participantCountField.field, participantCountField.name) === "";
-  const vegetarianCountIsValid =
-    validateWholeNumber(vegetarianCountField.field, vegetarianCountField.name) === "";
-  const veganCountIsValid =
-    validateWholeNumber(veganCountField.field, veganCountField.name) === "";
-
-// om fälten inte har heltal eller är tomma, returnera utan att göra fler kontroller och visa det felmeddelandet istället
+  // Hoppa över summakontrollen om något av fälten redan har ett individuellt fel.
   if (
-    participantCountIsValid === false ||
-    vegetarianCountIsValid === false ||
-    veganCountIsValid === false
+    fieldHasError(errorList, participantCountField) ||
+    fieldHasError(errorList, vegetarianCountField) ||
+    fieldHasError(errorList, veganCountField)
   ) {
     return;
   }
@@ -222,13 +205,11 @@ function validatePortionCounts(errorList) {
 
 // validerar att leveransdatumet är på konferensdagen eller dagen innan, lägger till fel i errorList om det inte är det
 function validateDeliveryDate(errorList) {
-  const conferenceDateIsValid =
-    validateFutureDate(conferenceDateField.field, conferenceDateField.name) === "";
-  const deliveryDateIsValid =
-    validateFutureDate(deliveryDateField.field, deliveryDateField.name) === "";
-
-// om fälten inte har giltiga datum eller är tomma, returnera utan att göra fler kontroller och visa det felmeddelandet istället
-  if (conferenceDateIsValid === false || deliveryDateIsValid === false) {
+  // Hoppa över datumjämförelsen om något av datumen redan har ett individuellt fel
+  if (
+    fieldHasError(errorList, conferenceDateField) ||
+    fieldHasError(errorList, deliveryDateField)
+  ) {
     return;
   }
 
@@ -331,7 +312,10 @@ function showSuccessMessage() {
 
 // aktiverar eller inaktiverar skicka-knappen beroende på om det finns några fel i formuläret
 function updateSubmitButton(errorList) {
-  if (errorList.length === 0) {
+  const formIsValid = errorList.length === 0;
+  submitButton.disabled = formIsValid === false;
+
+  if (formIsValid) {
     submitButton.classList.add("is-ready");
   } else {
     submitButton.classList.remove("is-ready");
@@ -349,7 +333,7 @@ function validateAndUpdateForm() {
   for (let i = 0; i < errorList.length; i++) {
     const error = errorList[i];
 
-    if (error.isEmpty === false || hasTriedToSubmit === true) {
+    if (error.isEmpty === false || error.field.wasTouched === true) {
       showFieldError(error.field, error.text);
       shortErrorTexts.push(error.shortText);
     }
@@ -373,18 +357,6 @@ function validateAndUpdateForm() {
   return errorList;
 }
 
-// uppdaterar skicka-knappen när användaren skriver i ett fält, och sparar vilket fält som senast ändrades med hjälp av event.target (det aktiva fältet)
-function updateSubmitButtonAfterTyping(event) {
-  if (event.target === vegetarianCountField.field) {
-    lastEditedPortionField = vegetarianCountField;
-  } else if (event.target === veganCountField.field) {
-    lastEditedPortionField = veganCountField;
-  }
-
-  const errorList = getAllErrors();
-  updateSubmitButton(errorList);
-}
-
 // =====================================================
 // EVENT (ALLT KÖRS)
 // =====================================================
@@ -394,13 +366,11 @@ orderForm.addEventListener("submit", function (event) {
   
 // ladda inte om sidan när man skickar formuläret, vilket är default, utan visa felmeddelanden och markera fält med fel eller visa bekräftelse om det är giltigt
   event.preventDefault();
-  hasTriedToSubmit = true;
   
   // listan med alla fel som fås av huvudfunktionen validateAndUpdateForm, som nu körs när man försöker skicka formuläret
   const errorList = validateAndUpdateForm();
 
   if (errorList.length > 0) {
-    focusFirstFieldWithError();
     return;
   }
 
@@ -408,12 +378,33 @@ orderForm.addEventListener("submit", function (event) {
   showSuccessMessage();
 });
 
-// Validera formuläret när ett fält ändras och uppdatera knappen medan användaren skriver.
+// Validera formuläret när ett fält ändras, användaren lämnar det eller trycker enter och uppdatera knappen medan användaren skriver
+function handleFieldInteraction(event) {
+  const fieldObject = formFields.find(function (item) {
+    return item.field === event.currentTarget;
+  });
+
+  if (event.type === "input") {
+    if (fieldObject === vegetarianCountField || fieldObject === veganCountField) {
+      lastEditedPortionField = fieldObject;
+    }
+
+    updateSubmitButton(getAllErrors());
+  } else if (event.type === "blur" || event.key === "Enter") {
+    fieldObject.wasTouched = true;
+    validateAndUpdateForm();
+  }
+}
+
+// lägger till eventlyssnare på alla fält i formuläret, som validerar/uppdaterar knappen när fälten ändras, lämnas eller trycks enter i
 for (let i = 0; i < formFields.length; i++) {
-  const field = formFields[i].field;
+  const fieldObject = formFields[i];
+  const field = fieldObject.field;
 
   field.addEventListener("change", validateAndUpdateForm);
-  field.addEventListener("input", updateSubmitButtonAfterTyping);
+  field.addEventListener("input", handleFieldInteraction);
+  field.addEventListener("blur", handleFieldInteraction);
+  field.addEventListener("keydown", handleFieldInteraction);
 }
 
 // när sidan laddas körs valideringen

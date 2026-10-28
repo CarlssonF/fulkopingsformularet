@@ -99,6 +99,13 @@ button {
   margin-bottom: 1.5rem;
 }
 
+.required-fields-note {
+  color: var(--fel);
+  font-weight: bold;
+  margin-top: -1rem;
+  margin-bottom: 1.5rem;
+}
+
 .form-field {
   margin-bottom: 1.25rem;
 }
@@ -266,6 +273,10 @@ button {
   font-size: 1rem;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.form-actions button:disabled {
+  cursor: not-allowed;
 }
 
 /* Röd när hela formuläret är giltigt (klassen sätts av JavaScript) */
